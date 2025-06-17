@@ -1,0 +1,46 @@
+steps:
+  # Build the Spring Boot application and create the JAR
+  - name: 'gradle:8.5-jdk21' # Use a Gradle image that matches your project's Java version
+    entrypoint: './gradlew'
+    args: ['bootJar']
+
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+        'build',
+        '-t',
+        '${_ARTIFACT_REGISTRY_REPO}/$_SERVICE_NAME:${_TAG_NAME}', # e.g., us-central1-docker.pkg.dev/your-project/your-repo/your-service:latest
+        '.'
+      ]
+
+  # Push the Docker image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_ARTIFACT_REGISTRY_REPO}/$_SERVICE_NAME:${_TAG_NAME}']
+
+  # Deploy to Cloud Run (placeholder - requires more specific configuration)
+  # This is a basic example and might need adjustments based on your Cloud Run setup
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args: [
+        'run', 'deploy', '${_SERVICE_NAME}',
+        '--image', '${_ARTIFACT_REGISTRY_REPO}/$_SERVICE_NAME:${_TAG_NAME}',
+        '--region', '${_REGION}', # e.g., us-central1
+        '--platform', 'managed',
+        '--allow-unauthenticated' # Adjust as needed for your security requirements
+      ]
+
+# Define substitutions (replace with your actual values)
+substitutions:
+  _ARTIFACT_REGISTRY_REPO: 'us-central1-docker.pkg.dev/your-project-id/your-repo-name' # Replace with your Artifact Registry path
+  _SERVICE_NAME: 'your-service-name' # Replace with your service name
+  _TAG_NAME: 'latest' # Or use a specific tag like $COMMIT_SHA
+  _REGION: 'us-central1' # Replace with your Cloud Run region
+
+images:
+  - '${_ARTIFACT_REGISTRY_REPO}/$_SERVICE_NAME:${_TAG_NAME}'
+
+# You might want to store the built JAR as an artifact as well
+# artifacts:
+#   objects:
+#     location: 'gs://your-bucket-name/artifacts/' # Optional: Store artifacts in a GCS bucket
+#     paths: ['build/libs/*.jar']
